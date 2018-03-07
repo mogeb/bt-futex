@@ -1,13 +1,17 @@
 import babeltrace.reader
 import sys
+import argparse
 from pprint import pprint
+from collections import defaultdict
+
+#order is important here
 import matplotlib
 matplotlib.use('GTK3Agg')
 import pylab
 from pylab import *
 import numpy as np
 from matplotlib.font_manager import FontProperties
-from collections import defaultdict
+
 
 per_cpu_holder = []
 results = {}
@@ -16,13 +20,11 @@ metrics = ['perf_thread_cache_misses', 'perf_thread_instructions', 'perf_thread_
            'perf_thread_branch_misses', 'perf_thread_dTLB_load_misses']
 legend = ['latency', 'perf_thread_cache_misses', 'perf_thread_instructions',
           'perf_thread_L1_dcache_load_misses', 'perf_thread_dTLB_load_misses', 'perf_thread_branch_misses']
-traces = ['/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/list/uid/1000/64-bit/',
-          '/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/vector/uid/1000/64-bit/']
-colors = {'/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/vector/uid/1000/64-bit/' : 'red',
-          '/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/list/uid/1000/64-bit/': 'green'}
-names = {'/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/vector/uid/1000/64-bit/' : 'vector',
-         '/home/mogeb/tmp/pmu-bufferlist/new_bufferlist_append/list/uid/1000/64-bit/': 'list'}
+
+colors = {}
+names = {}
 final_results = {}
+buffersize = 0
 
 
 def usage():
@@ -32,6 +34,7 @@ def usage():
 def compile_scatter_plot(args):
     global legend
     global final_results
+    global buffersize
     values = defaultdict(list)
 
     fontP = FontProperties()
@@ -42,6 +45,7 @@ def compile_scatter_plot(args):
         values[trace] = np.genfromtxt(fname, delimiter=',', skip_header=2, names=legend, dtype=None)
 
     i = 0
+    plt.suptitle('Buffer size = ' + buffersize, fontsize=16)
     for metric in legend:
         if metric == 'latency':
             continue
@@ -55,6 +59,7 @@ def compile_scatter_plot(args):
         # plt.legend(prop=fontP)
         i += 1
     # plt.legend(bbox_to_anchor=(1, 0), loc=1, borderaxespad=0.)
+    plt.title('OK')
     plt.legend(loc=4, borderaxespad=0., fontsize='small')
     plt.show()
 
@@ -85,9 +90,9 @@ def count_pmu(trace):
 
     for event in trace_collection.events:
         i = i + 1
-        # if i <= 200:
-            # continue
-        if i >= 2000:
+        if i <= 200:
+            continue
+        if i >= 700:
             break
         cpu = event['cpu_id']
 
@@ -146,9 +151,20 @@ def count_pmu(trace):
 
 
 if __name__ == '__main__':
-    if (len(sys.argv) != 2):
-        usage()
-        exit()
+    parser = argparse.ArgumentParser(description='Process traces')
+    parser.add_argument('--vector', '-v', type=str, required=True)
+    parser.add_argument('--list', '-l', type=str, required=True)
+    parser.add_argument('--buffersize', '-s', type=str, required=True)
+
+    parsed_args = parser.parse_args()
+
+    traces = [parsed_args.vector, parsed_args.list]
+    colors[parsed_args.vector] = 'red'
+    colors[parsed_args.list] = 'green'
+    names[parsed_args.vector] = 'vector'
+    names[parsed_args.list] = 'list'
+    buffersize = parsed_args.buffersize
+
     for trace in traces:
         count_pmu(trace)
     compile_scatter_plot(final_results)
